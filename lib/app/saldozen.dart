@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import '../features/startup/presentation/splash_page.dart';
 
-class GerenciadorTreinoApp extends StatelessWidget {
-  const GerenciadorTreinoApp({super.key});
+class SaldoZenApp extends StatelessWidget {
+  const SaldoZenApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CeliLac',
+      title: 'SaldoZen',
       debugShowCheckedModeBanner: false,
       home: const SplashPage(),
     );

@@ -1,6 +1,6 @@
 {
-    "name": "app_academia",
-    "short_name": "app_academia",
+    "name": "app_saldozen",
+    "short_name": "app_saldozen",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

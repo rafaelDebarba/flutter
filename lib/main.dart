@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'app/gerenciador_treino.dart';
+import 'app/saldozen.dart';
 
 void main() {
-  runApp(const GerenciadorTreinoApp());
+  runApp(const SaldoZenApp());
 }
