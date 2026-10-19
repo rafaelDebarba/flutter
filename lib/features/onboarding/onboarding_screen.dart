@@ -6,39 +6,35 @@ class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() =>
-      _OnboardingScreenState();
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState
-    extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
 
-  int currentPage = 0;
+  int _currentPage = 0;
 
-  final List<Map<String, dynamic>> pages = [
-    {
-      'icon': Icons.account_balance_wallet_rounded,
-      'title': 'Seu dinheiro,\nmais tranquilo.',
-      'description':
-          'Organize seus gastos e tenha mais controle sobre sua vida financeira.',
-    },
-    {
-      'icon': Icons.bar_chart_rounded,
-      'title': 'Entenda para\nonde vai seu dinheiro.',
-      'description':
-          'Acompanhe seus gastos de forma simples e descubra onde você pode economizar.',
-    },
-    {
-      'icon': Icons.spa_rounded,
-      'title': 'Alcance seus\nobjetivos.',
-      'description':
-          'Crie metas financeiras e acompanhe seu progresso de forma tranquila.',
-    },
+  static const List<({IconData icon, String title, String description})>
+  _pages = [
+    (
+      icon: Icons.account_balance_wallet_rounded,
+      title: 'Seu dinheiro,\nmais tranquilo.',
+      description: 'Organize seus gastos e tenha mais controle sobre sua vida financeira.',
+    ),
+    (
+      icon: Icons.bar_chart_rounded,
+      title: 'Entenda para\nonde vai seu dinheiro.',
+      description: 'Acompanhe seus gastos de forma simples e descubra onde você pode economizar.',
+    ),
+    (
+      icon: Icons.spa_rounded,
+      title: 'Alcance seus\nobjetivos.',
+      description: 'Crie metas financeiras e acompanhe seu progresso de forma tranquila.',
+    ),
   ];
 
   void nextPage() {
-    if (currentPage < pages.length - 1) {
+    if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
@@ -46,15 +42,13 @@ class _OnboardingScreenState
       return;
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomePage()),
-    );
+    Navigator.of(context)
+        .pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
   }
 
   void skip() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomePage()),
-    );
+    Navigator.of(context)
+        .pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
   }
 
   @override
@@ -70,31 +64,23 @@ class _OnboardingScreenState
       body: SafeArea(
         child: Column(
           children: [
-
             // =========================
             // TOPO
             // =========================
 
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 20,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-
                   Row(
                     children: [
-
                       Container(
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
                           color: const Color(0xFF5DBB63),
-                          borderRadius:
-                              BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
                           Icons.spa_rounded,
@@ -133,25 +119,19 @@ class _OnboardingScreenState
             // =========================
             // PÁGINAS
             // =========================
-
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: pages.length,
+                itemCount: _pages.length,
 
                 onPageChanged: (index) {
                   setState(() {
-                    currentPage = index;
+                    _currentPage = index;
                   });
                 },
 
                 itemBuilder: (context, index) {
-                  return _buildPage(
-                    icon: pages[index]['icon'],
-                    title: pages[index]['title'],
-                    description:
-                        pages[index]['description'],
-                  );
+                  return _buildPage(_pages[index]);
                 },
               ),
             ),
@@ -159,33 +139,24 @@ class _OnboardingScreenState
             // =========================
             // INDICADORES
             // =========================
-
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                pages.length,
-                (index) {
-                  final selected =
-                      index == currentPage;
+              children: List.generate(_pages.length, (index) {
+                final selected = index == _currentPage;
 
-                  return AnimatedContainer(
-                    duration:
-                        const Duration(milliseconds: 300),
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                    ),
-                    width: selected ? 28 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? const Color(0xFF5DBB63)
-                          : const Color(0xFFD5DED5),
-                      borderRadius:
-                          BorderRadius.circular(20),
-                    ),
-                  );
-                },
-              ),
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: selected ? 28 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? const Color(0xFF5DBB63)
+                        : const Color(0xFFD5DED5),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                );
+              }),
             ),
 
             const SizedBox(height: 30),
@@ -193,31 +164,23 @@ class _OnboardingScreenState
             // =========================
             // BOTÃO
             // =========================
-
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                24,
-                0,
-                24,
-                25,
-              ),
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 25),
               child: SizedBox(
                 width: double.infinity,
                 height: 58,
                 child: ElevatedButton(
                   onPressed: nextPage,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        const Color(0xFF5DBB63),
+                    backgroundColor: const Color(0xFF5DBB63),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                   ),
                   child: Text(
-                    currentPage == pages.length - 1
+                    _currentPage == _pages.length - 1
                         ? 'Começar agora'
                         : 'Continuar',
                     style: const TextStyle(
@@ -238,11 +201,7 @@ class _OnboardingScreenState
   // PÁGINA DO ONBOARDING
   // =========================
 
-  Widget _buildPage({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
+  Widget _buildPage(({IconData icon, String title, String description}) page) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return Padding(
@@ -286,7 +245,7 @@ class _OnboardingScreenState
                             ],
                           ),
                           child: Icon(
-                            icon,
+                            page.icon,
                             size: 52,
                             color: const Color(0xFF5DBB63),
                           ),
@@ -331,7 +290,7 @@ class _OnboardingScreenState
                   const SizedBox(height: 30),
 
                   Text(
-                    title,
+                    page.title,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 28,
@@ -344,7 +303,7 @@ class _OnboardingScreenState
                   const SizedBox(height: 14),
 
                   Text(
-                    description,
+                    page.description,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 15,

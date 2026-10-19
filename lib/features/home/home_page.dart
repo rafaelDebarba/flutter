@@ -1,7 +1,138 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
-class HomePage extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'transaction_form.dart';
+
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  static const _preferencesKey = 'saldozen.transactions';
+  static const _startingIncomeInCents = 620000;
+  static const _startingExpenseInCents = 135000;
+  static const _sampleTransactions = [
+    FinanceTransaction(
+      title: 'Supermercado',
+      category: 'Alimentação',
+      amountInCents: 24590,
+      type: TransactionType.expense,
+    ),
+    FinanceTransaction(
+      title: 'Combustível',
+      category: 'Transporte',
+      amountInCents: 12000,
+      type: TransactionType.expense,
+    ),
+    FinanceTransaction(
+      title: 'Salário',
+      category: 'Salário',
+      amountInCents: 450000,
+      type: TransactionType.income,
+    ),
+    FinanceTransaction(
+      title: 'Netflix',
+      category: 'Lazer',
+      amountInCents: 3990,
+      type: TransactionType.expense,
+    ),
+  ];
+
+  SharedPreferences? _preferences;
+  final List<FinanceTransaction> _transactions = [];
+  bool _loadingTransactions = true;
+
+  int get _incomeInCents =>
+      _startingIncomeInCents +
+      _transactions
+          .where((transaction) => transaction.type == TransactionType.income)
+          .fold<int>(0, (sum, transaction) => sum + transaction.amountInCents);
+
+  int get _expenseInCents =>
+      _startingExpenseInCents +
+      _transactions
+          .where((transaction) => transaction.type == TransactionType.expense)
+          .fold<int>(0, (sum, transaction) => sum + transaction.amountInCents);
+
+  static String _formatCurrency(int amountInCents) {
+    final absoluteAmount = amountInCents.abs();
+    final wholePart = (absoluteAmount ~/ 100).toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
+    final decimalPart = (absoluteAmount % 100).toString().padLeft(2, '0');
+    final sign = amountInCents < 0 ? '- ' : '';
+    return '${sign}R\$ $wholePart,$decimalPart';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final encoded = preferences.getStringList(_preferencesKey) ?? [];
+      final transactions = encoded
+          .map((value) => FinanceTransaction.fromJson(
+                jsonDecode(value) as Map<String, dynamic>,
+              ))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _preferences = preferences;
+        _transactions.addAll(transactions);
+        _loadingTransactions = false;
+      });
+    } on Exception {
+      if (!mounted) return;
+      setState(() => _loadingTransactions = false);
+      _showMessage('Não foi possível carregar seus lançamentos salvos.');
+    }
+  }
+
+  Future<void> _addTransaction() async {
+    final transaction = await showModalBottomSheet<FinanceTransaction>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const TransactionForm(),
+    );
+    if (transaction == null || !mounted) return;
+
+    final updatedTransactions = [..._transactions, transaction];
+    try {
+      final saved = await _preferences!.setStringList(
+        _preferencesKey,
+        updatedTransactions.map((item) => jsonEncode(item.toJson())).toList(),
+      );
+      if (!saved) {
+        _showMessage('Não foi possível salvar o lançamento. Tente novamente.');
+        return;
+      }
+    } on Exception {
+      if (mounted) {
+        _showMessage('Não foi possível salvar o lançamento. Tente novamente.');
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _transactions.add(transaction));
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,9 +289,11 @@ class HomePage extends StatelessWidget {
 
                           const SizedBox(height: 10),
 
-                          const Text(
-                            'R\$ 4.850,00',
-                            style: TextStyle(
+                          Text(
+                            _formatCurrency(
+                              _incomeInCents - _expenseInCents,
+                            ),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 34,
                               fontWeight: FontWeight.w800,
@@ -173,13 +306,13 @@ class HomePage extends StatelessWidget {
                             children: [
                               _balanceInfo(
                                 'Receitas',
-                                'R\$ 6.200,00',
+                                _formatCurrency(_incomeInCents),
                                 Icons.arrow_downward_rounded,
                               ),
                               const SizedBox(width: 28),
                               _balanceInfo(
                                 'Despesas',
-                                'R\$ 1.350,00',
+                                _formatCurrency(_expenseInCents),
                                 Icons.arrow_upward_rounded,
                               ),
                             ],
@@ -257,9 +390,9 @@ class HomePage extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 5),
-                          const Text(
-                            'R\$ 1.350,00',
-                            style: TextStyle(
+                          Text(
+                            _formatCurrency(_expenseInCents),
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF193B20),
@@ -319,38 +452,8 @@ class HomePage extends StatelessWidget {
 
                     const SizedBox(height: 4),
 
-                    _transaction(
-                      icon: Icons.shopping_cart_outlined,
-                      title: 'Supermercado',
-                      category: 'Alimentação',
-                      value: '- R\$ 245,90',
-                      color: Colors.orange,
-                    ),
-
-                    _transaction(
-                      icon: Icons.directions_car_outlined,
-                      title: 'Combustível',
-                      category: 'Transporte',
-                      value: '- R\$ 120,00',
-                      color: Colors.blue,
-                    ),
-
-                    _transaction(
-                      icon: Icons.work_outline_rounded,
-                      title: 'Salário',
-                      category: 'Receita',
-                      value: '+ R\$ 4.500,00',
-                      color: Colors.green,
-                      income: true,
-                    ),
-
-                    _transaction(
-                      icon: Icons.movie_outlined,
-                      title: 'Netflix',
-                      category: 'Lazer',
-                      value: '- R\$ 39,90',
-                      color: Colors.red,
-                    ),
+                    ..._transactions.reversed.map(_buildTransaction),
+                    ..._sampleTransactions.map(_buildTransaction),
 
                     const SizedBox(height: 90),
                   ],
@@ -363,13 +466,54 @@ class HomePage extends StatelessWidget {
 
       // BOTÃO ADICIONAR
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: _loadingTransactions || _preferences == null
+            ? null
+            : _addTransaction,
+        tooltip: 'Adicionar receita ou gasto',
         backgroundColor: const Color(0xFF4CAF58),
         foregroundColor: Colors.white,
         elevation: 5,
         child: const Icon(Icons.add_rounded, size: 30),
       ),
     );
+  }
+
+  Widget _buildTransaction(FinanceTransaction transaction) {
+    final isIncome = transaction.type == TransactionType.income;
+    final color = isIncome ? Colors.green : _categoryColor(transaction.category);
+    final icon = isIncome
+        ? Icons.work_outline_rounded
+        : _categoryIcon(transaction.category);
+    final sign = isIncome ? '+ ' : '- ';
+
+    return _transaction(
+      icon: icon,
+      title: transaction.title,
+      category: transaction.category,
+      value: '$sign${_formatCurrency(transaction.amountInCents)}',
+      color: color,
+      income: isIncome,
+    );
+  }
+
+  static Color _categoryColor(String category) {
+    return switch (category) {
+      'Alimentação' => Colors.orange,
+      'Transporte' => Colors.blue,
+      'Lazer' => Colors.red,
+      'Moradia' => Colors.deepPurple,
+      _ => Colors.teal,
+    };
+  }
+
+  static IconData _categoryIcon(String category) {
+    return switch (category) {
+      'Alimentação' => Icons.shopping_cart_outlined,
+      'Transporte' => Icons.directions_car_outlined,
+      'Lazer' => Icons.movie_outlined,
+      'Moradia' => Icons.home_outlined,
+      _ => Icons.receipt_long_outlined,
+    };
   }
 
   static Widget _balanceInfo(

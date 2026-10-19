@@ -35,19 +35,22 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            FlutterLogo(size: 100),
-            SizedBox(height: 24),
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              'Carregando...',
-              style: TextStyle(fontSize: 24),
+            Image.asset(
+              'assets/images/app_icon.png',
+              width: 220,
+              height: 220,
+              fit: BoxFit.contain,
+              semanticLabel: 'Logo do SaldoZen',
             ),
+            const SizedBox(height: 24),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            const Text('Carregando...', style: TextStyle(fontSize: 24)),
           ],
         ),
       ),
