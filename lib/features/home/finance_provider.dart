@@ -11,10 +11,12 @@ class FinanceProvider extends ChangeNotifier {
   List<FinanceTransaction> _transactions = [];
   bool _isLoading = true;
   bool _hasLoaded = false;
+  String? _loadError;
   Future<void>? _loadingFuture;
 
   List<FinanceTransaction> get transactions => List.unmodifiable(_transactions);
   bool get isLoading => _isLoading;
+  String? get loadError => _loadError;
 
   int get incomeInCents => _transactions
       .where((item) => item.type == TransactionType.income)
@@ -32,6 +34,7 @@ class FinanceProvider extends ChangeNotifier {
     if (pendingLoad != null) return pendingLoad;
 
     _isLoading = true;
+    _loadError = null;
     notifyListeners();
     final loading = _loadTransactions();
     _loadingFuture = loading;
@@ -42,6 +45,9 @@ class FinanceProvider extends ChangeNotifier {
     try {
       _transactions = await _repository.getTransactions();
       _hasLoaded = true;
+    } catch (_) {
+      _loadError = 'Não foi possível carregar seus lançamentos.';
+      rethrow;
     } finally {
       _isLoading = false;
       _loadingFuture = null;
