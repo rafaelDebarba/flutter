@@ -13,9 +13,15 @@ class FinanceTransactionRepository {
   static const _migrationKey = 'legacy_transactions_imported';
 
   final String databaseName;
-  Database? _database;
+  Future<Database>? _databaseFuture;
 
-  Future<Database> get _db async => _database ??= await _openDatabase();
+  // Compartilha a abertura entre chamadas concorrentes.
+  Future<Database> get _db => _databaseFuture ??= _openDatabase().catchError(
+    (Object error, StackTrace stackTrace) {
+      _databaseFuture = null;
+      Error.throwWithStackTrace(error, stackTrace);
+    },
+  );
 
   Future<Database> _openDatabase() async {
     final databasesPath = await getDatabasesPath();
@@ -110,7 +116,11 @@ class FinanceTransactionRepository {
   }
 
   Future<void> close() async {
-    await _database?.close();
-    _database = null;
+    final pending = _databaseFuture;
+    _databaseFuture = null;
+    if (pending != null) {
+      final database = await pending;
+      await database.close();
+    }
   }
 }
