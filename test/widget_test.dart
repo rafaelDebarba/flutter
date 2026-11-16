@@ -200,6 +200,8 @@ void main() {
       find.byKey(const Key('transaction-amount')),
       '12,00',
     );
+    await tester.ensureVisible(find.text('Salvar lançamento'));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Salvar lançamento'));
     await tester.pump(const Duration(milliseconds: 500));
     expect(repository.savedTransaction, isNull);
