@@ -190,7 +190,57 @@ class _HomePageState extends State<HomePage> {
                                   fontSize: 14,
                                 ),
                               ),
-                              const SizedBox.shrink(),
+
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Text(
+                            _formatCurrency(finance.balanceInCents),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          Row(
+                            children: [
+                              _balanceInfo(
+                                'Receitas',
+                                _formatCurrency(finance.incomeInCents),
+                                Icons.arrow_downward_rounded,
+                              ),
+                              const SizedBox(width: 28),
+                              _balanceInfo(
+                                'Despesas',
+                                _formatCurrency(finance.expenseInCents),
+                                Icons.arrow_upward_rounded,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // TRANSAÇÕES
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Últimas transações',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF193B20),
+                          ),
+                        ),
+
                       ],
                     ),
 
