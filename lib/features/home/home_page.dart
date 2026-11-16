@@ -1,8 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
+import '../profile/financial_profile_provider.dart';
+import '../profile/financial_profile_screen.dart';
+import 'finance_provider.dart';
 import 'transaction_form.dart';
 
 class HomePage extends StatefulWidget {
@@ -13,52 +14,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  static const _preferencesKey = 'saldozen.transactions';
-  static const _startingIncomeInCents = 620000;
-  static const _startingExpenseInCents = 135000;
-  static const _sampleTransactions = [
-    FinanceTransaction(
-      title: 'Supermercado',
-      category: 'Alimentação',
-      amountInCents: 24590,
-      type: TransactionType.expense,
-    ),
-    FinanceTransaction(
-      title: 'Combustível',
-      category: 'Transporte',
-      amountInCents: 12000,
-      type: TransactionType.expense,
-    ),
-    FinanceTransaction(
-      title: 'Salário',
-      category: 'Salário',
-      amountInCents: 450000,
-      type: TransactionType.income,
-    ),
-    FinanceTransaction(
-      title: 'Netflix',
-      category: 'Lazer',
-      amountInCents: 3990,
-      type: TransactionType.expense,
-    ),
-  ];
-
-  SharedPreferences? _preferences;
-  final List<FinanceTransaction> _transactions = [];
-  bool _loadingTransactions = true;
-
-  int get _incomeInCents =>
-      _startingIncomeInCents +
-      _transactions
-          .where((transaction) => transaction.type == TransactionType.income)
-          .fold<int>(0, (sum, transaction) => sum + transaction.amountInCents);
-
-  int get _expenseInCents =>
-      _startingExpenseInCents +
-      _transactions
-          .where((transaction) => transaction.type == TransactionType.expense)
-          .fold<int>(0, (sum, transaction) => sum + transaction.amountInCents);
-
   static String _formatCurrency(int amountInCents) {
     final absoluteAmount = amountInCents.abs();
     final wholePart = (absoluteAmount ~/ 100).toString().replaceAllMapped(
@@ -73,28 +28,16 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadTransactions();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTransactions());
   }
 
   Future<void> _loadTransactions() async {
     try {
-      final preferences = await SharedPreferences.getInstance();
-      final encoded = preferences.getStringList(_preferencesKey) ?? [];
-      final transactions = encoded
-          .map((value) => FinanceTransaction.fromJson(
-                jsonDecode(value) as Map<String, dynamic>,
-              ))
-          .toList();
-      if (!mounted) return;
-      setState(() {
-        _preferences = preferences;
-        _transactions.addAll(transactions);
-        _loadingTransactions = false;
-      });
+      await context.read<FinanceProvider>().loadTransactions();
     } on Exception {
-      if (!mounted) return;
-      setState(() => _loadingTransactions = false);
-      _showMessage('Não foi possível carregar seus lançamentos salvos.');
+      if (mounted) {
+        _showMessage('Não foi possível carregar seus lançamentos salvos.');
+      }
     }
   }
 
@@ -107,25 +50,13 @@ class _HomePageState extends State<HomePage> {
     );
     if (transaction == null || !mounted) return;
 
-    final updatedTransactions = [..._transactions, transaction];
     try {
-      final saved = await _preferences!.setStringList(
-        _preferencesKey,
-        updatedTransactions.map((item) => jsonEncode(item.toJson())).toList(),
-      );
-      if (!saved) {
-        _showMessage('Não foi possível salvar o lançamento. Tente novamente.');
-        return;
-      }
+      await context.read<FinanceProvider>().addTransaction(transaction);
     } on Exception {
       if (mounted) {
         _showMessage('Não foi possível salvar o lançamento. Tente novamente.');
       }
-      return;
     }
-
-    if (!mounted) return;
-    setState(() => _transactions.add(transaction));
   }
 
   void _showMessage(String message) {
@@ -136,6 +67,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final finance = context.watch<FinanceProvider>();
+    final profile = context.watch<FinancialProfileProvider>();
+
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -176,16 +110,27 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ],
                         ),
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(
-                            Icons.notifications_none_rounded,
-                            color: Color(0xFF193B20),
+                        IconButton(
+                          tooltip: 'Editar perfil financeiro',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const FinancialProfileScreen(editing: true),
+                              ),
+                            );
+                          },
+                          icon: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.person_outline_rounded,
+                              color: Color(0xFF193B20),
+                            ),
                           ),
                         ),
                       ],
@@ -194,12 +139,9 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 30),
 
                     // SAUDAÇÃO
-                    const Text(
-                      'Olá, João 👋',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF718071),
-                      ),
+                    Text(
+                      'Olá, ${profile.name.isEmpty ? 'Pessoa' : profile.name} 👋',
+                      style: TextStyle(fontSize: 16, color: Color(0xFF718071)),
                     ),
 
                     const SizedBox(height: 4),
@@ -221,10 +163,7 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF4CAF58),
-                            Color(0xFF78C97D),
-                          ],
+                          colors: [Color(0xFF4CAF58), Color(0xFF78C97D)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -239,12 +178,10 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text(
                                 'Saldo disponível',
@@ -259,10 +196,8 @@ class _HomePageState extends State<HomePage> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white
-                                      .withValues(alpha: 0.18),
-                                  borderRadius:
-                                      BorderRadius.circular(20),
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: const Row(
                                   children: [
@@ -277,8 +212,7 @@ class _HomePageState extends State<HomePage> {
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 12,
-                                        fontWeight:
-                                            FontWeight.bold,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ],
@@ -290,9 +224,7 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 10),
 
                           Text(
-                            _formatCurrency(
-                              _incomeInCents - _expenseInCents,
-                            ),
+                            _formatCurrency(finance.balanceInCents),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 34,
@@ -306,13 +238,13 @@ class _HomePageState extends State<HomePage> {
                             children: [
                               _balanceInfo(
                                 'Receitas',
-                                _formatCurrency(_incomeInCents),
+                                _formatCurrency(finance.incomeInCents),
                                 Icons.arrow_downward_rounded,
                               ),
                               const SizedBox(width: 28),
                               _balanceInfo(
                                 'Despesas',
-                                _formatCurrency(_expenseInCents),
+                                _formatCurrency(finance.expenseInCents),
                                 Icons.arrow_upward_rounded,
                               ),
                             ],
@@ -323,111 +255,11 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 28),
 
-                    // TÍTULO
-                    Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Visão geral',
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF193B20),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius:
-                                BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            children: [
-                              Text(
-                                'Este mês',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF506050),
-                                ),
-                              ),
-                              SizedBox(width: 5),
-                              Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 17,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // GRÁFICO
-                    Container(
-                      height: 190,
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Gastos',
-                            style: TextStyle(
-                              color: Color(0xFF788578),
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            _formatCurrency(_expenseInCents),
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF193B20),
-                            ),
-                          ),
-
-                          const SizedBox(height: 18),
-
-                          Expanded(
-                            child: Row(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.end,
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceAround,
-                              children: [
-                                _bar('Seg', 0.45),
-                                _bar('Ter', 0.65),
-                                _bar('Qua', 0.35),
-                                _bar('Qui', 0.80),
-                                _bar('Sex', 0.55),
-                                _bar('Sáb', 0.90),
-                                _bar('Dom', 0.30),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
                     const SizedBox(height: 28),
 
                     // TRANSAÇÕES
                     Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           'Últimas transações',
@@ -452,8 +284,16 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 4),
 
-                    ..._transactions.reversed.map(_buildTransaction),
-                    ..._sampleTransactions.map(_buildTransaction),
+                    if (finance.transactions.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 18),
+                        child: Text(
+                          'Nenhum lançamento registrado ainda.',
+                          style: TextStyle(color: Color(0xFF718071)),
+                        ),
+                      )
+                    else
+                      ...finance.transactions.reversed.map(_buildTransaction),
 
                     const SizedBox(height: 90),
                   ],
@@ -466,9 +306,7 @@ class _HomePageState extends State<HomePage> {
 
       // BOTÃO ADICIONAR
       floatingActionButton: FloatingActionButton(
-        onPressed: _loadingTransactions || _preferences == null
-            ? null
-            : _addTransaction,
+        onPressed: _addTransaction,
         tooltip: 'Adicionar receita ou gasto',
         backgroundColor: const Color(0xFF4CAF58),
         foregroundColor: Colors.white,
@@ -480,7 +318,9 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildTransaction(FinanceTransaction transaction) {
     final isIncome = transaction.type == TransactionType.income;
-    final color = isIncome ? Colors.green : _categoryColor(transaction.category);
+    final color = isIncome
+        ? Colors.green
+        : _categoryColor(transaction.category);
     final icon = isIncome
         ? Icons.work_outline_rounded
         : _categoryIcon(transaction.category);
@@ -516,11 +356,7 @@ class _HomePageState extends State<HomePage> {
     };
   }
 
-  static Widget _balanceInfo(
-    String title,
-    String value,
-    IconData icon,
-  ) {
+  static Widget _balanceInfo(String title, String value, IconData icon) {
     return Row(
       children: [
         Container(
@@ -530,11 +366,7 @@ class _HomePageState extends State<HomePage> {
             color: Colors.white.withValues(alpha: 0.18),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 17,
-          ),
+          child: Icon(icon, color: Colors.white, size: 17),
         ),
         const SizedBox(width: 8),
         Column(
@@ -542,10 +374,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-              ),
+              style: const TextStyle(color: Colors.white70, fontSize: 11),
             ),
             Text(
               value,
@@ -556,35 +385,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  static Widget _bar(String day, double height) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              width: 25,
-              height: 85 * height,
-              decoration: BoxDecoration(
-                color: const Color(0xFF70C477),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          day,
-          style: const TextStyle(
-            color: Color(0xFF879287),
-            fontSize: 10,
-          ),
         ),
       ],
     );
@@ -614,18 +414,14 @@ class _HomePageState extends State<HomePage> {
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              icon,
-              color: color,
-            ),
+            child: Icon(icon, color: color),
           ),
 
           const SizedBox(width: 13),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -652,9 +448,7 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
-              color: income
-                  ? const Color(0xFF4CAF58)
-                  : const Color(0xFF263526),
+              color: income ? const Color(0xFF4CAF58) : const Color(0xFF263526),
             ),
           ),
         ],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../home/home_page.dart';
+import '../profile/financial_profile_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -42,13 +42,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    Navigator.of(context)
-        .pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
+    _openProfile();
   }
 
   void skip() {
-    Navigator.of(context)
-        .pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
+    _openProfile();
+  }
+
+  void _openProfile() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const FinancialProfileScreen()),
+    );
   }
 
   @override

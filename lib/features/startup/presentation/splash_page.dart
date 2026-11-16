@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../home/home_page.dart';
 import '../../onboarding/onboarding_screen.dart';
+import '../../profile/financial_profile_provider.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -18,13 +21,20 @@ class _SplashPageState extends State<SplashPage> {
   void initState() {
     super.initState();
 
-    _timer = Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
+    _timer = Timer(const Duration(seconds: 2), _navigate);
+  }
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
-    });
+  Future<void> _navigate() async {
+    await context.read<FinancialProfileProvider>().load();
+    if (!mounted) return;
+
+    final hasProfile = context.read<FinancialProfileProvider>().hasProfile;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) =>
+            hasProfile ? const HomePage() : const OnboardingScreen(),
+      ),
+    );
   }
 
   @override

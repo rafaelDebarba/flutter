@@ -5,16 +5,26 @@ enum TransactionType { income, expense }
 
 class FinanceTransaction {
   const FinanceTransaction({
+    this.id,
     required this.title,
     required this.category,
     required this.amountInCents,
     required this.type,
   });
 
+  final int? id;
   final String title;
   final String category;
   final int amountInCents;
   final TransactionType type;
+
+  FinanceTransaction withId(int id) => FinanceTransaction(
+    id: id,
+    title: title,
+    category: category,
+    amountInCents: amountInCents,
+    type: type,
+  );
 
   Map<String, Object> toJson() => {
     'title': title,
@@ -71,6 +81,8 @@ class _TransactionFormState extends State<TransactionForm> {
 
     final normalized = value.contains(',')
         ? value.replaceAll('.', '').replaceAll(',', '.')
+        : RegExp(r'^\d{1,3}(?:\.\d{3})+$').hasMatch(value)
+        ? value.replaceAll('.', '')
         : value;
     final amount = double.tryParse(normalized);
     if (amount == null || !amount.isFinite || amount <= 0 || amount >= 1e12) {
