@@ -190,7 +190,7 @@ void main() {
       isNotNull,
     );
     await tester.tap(find.byTooltip('Adicionar receita ou gasto'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Novo lançamento'), findsOneWidget);
     await tester.enterText(
       find.byKey(const Key('transaction-description')),
@@ -201,7 +201,7 @@ void main() {
       '12,00',
     );
     await tester.tap(find.text('Salvar lançamento'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(repository.savedTransaction, isNull);
 
     repository.completeLoad();
