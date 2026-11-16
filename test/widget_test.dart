@@ -8,7 +8,7 @@ import 'package:app_saldozen/features/home/finance_transaction_repository.dart';
 import 'package:app_saldozen/features/onboarding/onboarding_screen.dart';
 import 'package:app_saldozen/features/home/transaction_form.dart';
 import 'package:app_saldozen/features/profile/financial_profile_provider.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -190,7 +190,7 @@ void main() {
       isNotNull,
     );
     await tester.tap(find.byTooltip('Adicionar receita ou gasto'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Novo lançamento'), findsOneWidget);
     await tester.enterText(
       find.byKey(const Key('transaction-description')),
@@ -200,8 +200,10 @@ void main() {
       find.byKey(const Key('transaction-amount')),
       '12,00',
     );
+    await tester.ensureVisible(find.text('Salvar lançamento'));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Salvar lançamento'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(repository.savedTransaction, isNull);
 
     repository.completeLoad();

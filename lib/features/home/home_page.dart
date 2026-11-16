@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../profile/financial_profile_provider.dart';
@@ -190,34 +190,7 @@ class _HomePageState extends State<HomePage> {
                                   fontSize: 14,
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.18),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.trending_up_rounded,
-                                      color: Colors.white,
-                                      size: 15,
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      '+8,4%',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+
                             ],
                           ),
 
@@ -255,8 +228,6 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 28),
 
-                    const SizedBox(height: 28),
-
                     // TRANSAÇÕES
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -269,22 +240,33 @@ class _HomePageState extends State<HomePage> {
                             color: Color(0xFF193B20),
                           ),
                         ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text(
-                            'Ver todas',
-                            style: TextStyle(
-                              color: Color(0xFF4CAF58),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+
                       ],
                     ),
 
                     const SizedBox(height: 4),
 
-                    if (finance.transactions.isEmpty)
+                    if (finance.loadError != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(finance.loadError!),
+                            TextButton.icon(
+                              onPressed: _loadTransactions,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Tentar novamente'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (finance.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 18),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (finance.transactions.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 18),
                         child: Text(
