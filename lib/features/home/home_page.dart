@@ -190,101 +190,33 @@ class _HomePageState extends State<HomePage> {
                                   fontSize: 14,
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.18),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.trending_up_rounded,
-                                      color: Colors.white,
-                                      size: 15,
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      '+8,4%',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          Text(
-                            _formatCurrency(finance.balanceInCents),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 34,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          Row(
-                            children: [
-                              _balanceInfo(
-                                'Receitas',
-                                _formatCurrency(finance.incomeInCents),
-                                Icons.arrow_downward_rounded,
-                              ),
-                              const SizedBox(width: 28),
-                              _balanceInfo(
-                                'Despesas',
-                                _formatCurrency(finance.expenseInCents),
-                                Icons.arrow_upward_rounded,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    const SizedBox(height: 28),
-
-                    // TRANSAÇÕES
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Últimas transações',
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF193B20),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text(
-                            'Ver todas',
-                            style: TextStyle(
-                              color: Color(0xFF4CAF58),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                              const SizedBox.shrink(),
                       ],
                     ),
 
                     const SizedBox(height: 4),
 
-                    if (finance.transactions.isEmpty)
+                    if (finance.loadError != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(finance.loadError!),
+                            TextButton.icon(
+                              onPressed: _loadTransactions,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Tentar novamente'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (finance.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 18),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (finance.transactions.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 18),
                         child: Text(
