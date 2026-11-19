@@ -99,6 +99,138 @@ void main() {
     await reopenedRepository.close();
   });
 
+  test('migra o SQLite v1 e persiste favoritos por ID', () async {
+    final databaseName = nextDatabaseName();
+    final databasePath = '${await getDatabasesPath()}/$databaseName';
+    addTearDown(() => databaseFactory.deleteDatabase(databasePath));
+    final versionOne = await databaseFactory.openDatabase(
+      databasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (db, _) async {
+          await db.execute("""
+            CREATE TABLE transactions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              title TEXT NOT NULL,
+              category TEXT NOT NULL,
+              amountInCents INTEGER NOT NULL,
+              type TEXT NOT NULL
+            )
+          """);
+          await db.execute(
+            'CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+          );
+          await db.insert('metadata', {
+            'key': 'legacy_transactions_imported',
+            'value': 'true',
+          });
+          await db.insert('transactions', {
+            'id': 42,
+            'title': 'Salário',
+            'category': 'Receita',
+            'amountInCents': 250000,
+            'type': 'income',
+          });
+          await db.insert('transactions', {
+            'id': 43,
+            'title': 'Mercado',
+            'category': 'Alimentação',
+            'amountInCents': 5000,
+            'type': 'expense',
+          });
+        },
+      ),
+    );
+    await versionOne.close();
+    final repository = FinanceTransactionRepository(databaseName: databaseName);
+    addTearDown(repository.close);
+
+    final original = await repository.getTransactions();
+    expect(original.map((item) => item.id), [42, 43]);
+    expect(original.map((item) => item.title), ['Salário', 'Mercado']);
+    expect(original.map((item) => item.category), ['Receita', 'Alimentação']);
+    expect(original.map((item) => item.amountInCents), [250000, 5000]);
+    expect(original.map((item) => item.type), [
+      TransactionType.income,
+      TransactionType.expense,
+    ]);
+    expect(original.map((item) => item.isFavorite), [false, false]);
+
+    await repository.setFavorite(42, true);
+    await repository.setFavorite(43, true);
+    await repository.close();
+    expect(
+      (await repository.getTransactions()).map((item) => item.isFavorite),
+      [true, true],
+    );
+    await repository.setFavorite(42, false);
+    await repository.close();
+    expect(
+      (await repository.getTransactions()).map((item) => item.isFavorite),
+      [false, true],
+    );
+  });
+
+  testWidgets('filtra, favorita e desfavorita receitas e despesas', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 1050);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final databaseName = nextDatabaseName();
+    final provider = FinanceProvider(
+      repository: _MemoryFinanceTransactionRepository(databaseName),
+    );
+    addTearDown(provider.dispose);
+    await provider.addTransaction(
+      const FinanceTransaction(
+        title: 'Freelance',
+        category: 'Renda extra',
+        amountInCents: 100000,
+        type: TransactionType.income,
+      ),
+    );
+    await provider.addTransaction(
+      const FinanceTransaction(
+        title: 'Mercado',
+        category: 'Alimentação',
+        amountInCents: 5000,
+        type: TransactionType.expense,
+      ),
+    );
+    await tester.pumpWidget(
+      withProviders(const HomePage(), databaseName, financeProvider: provider),
+    );
+    await tester.pumpAndSettle();
+
+    final add = find.byTooltip('Adicionar aos favoritos');
+    final remove = find.byTooltip('Remover dos favoritos');
+    await tester.tap(add.first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Favoritas (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mercado'), findsOneWidget);
+    expect(find.text('Freelance'), findsNothing);
+
+    await tester.tap(remove);
+    await tester.pumpAndSettle();
+    expect(find.text('Favoritas (0)'), findsOneWidget);
+    expect(find.textContaining('Nenhum favorito ainda'), findsOneWidget);
+    await tester.tap(find.text('Todas'));
+    await tester.pumpAndSettle();
+    await tester.tap(add.last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Favoritas (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Freelance'), findsOneWidget);
+    expect(find.text('Mercado'), findsNothing);
+    expect(provider.balanceInCents, 95000);
+    expect(find.text('R\$ 950,00'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('deve renderizar a splash screen', (WidgetTester tester) async {
     await tester.pumpWidget(const SaldoZenApp());
 
@@ -316,6 +448,14 @@ class _MemoryFinanceTransactionRepository extends FinanceTransactionRepository {
     final savedTransaction = transaction.withId(_storedTransactions.length + 1);
     _storedTransactions.add(savedTransaction);
     return savedTransaction;
+  }
+
+  @override
+  Future<void> setFavorite(int id, bool isFavorite) async {
+    final index = _storedTransactions.indexWhere((item) => item.id == id);
+    _storedTransactions[index] = _storedTransactions[index].withFavorite(
+      isFavorite,
+    );
   }
 
   @override

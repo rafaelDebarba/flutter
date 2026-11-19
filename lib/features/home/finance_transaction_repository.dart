@@ -16,18 +16,26 @@ class FinanceTransactionRepository {
   Future<Database>? _databaseFuture;
 
   // Compartilha a abertura entre chamadas concorrentes.
-  Future<Database> get _db => _databaseFuture ??= _openDatabase().catchError(
-    (Object error, StackTrace stackTrace) {
-      _databaseFuture = null;
-      Error.throwWithStackTrace(error, stackTrace);
-    },
-  );
+  Future<Database> get _db => _databaseFuture ??= _openDatabase().catchError((
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    _databaseFuture = null;
+    Error.throwWithStackTrace(error, stackTrace);
+  });
 
   Future<Database> _openDatabase() async {
     final databasesPath = await getDatabasesPath();
     return openDatabase(
       path.join(databasesPath, databaseName),
-      version: 1,
+      version: 2,
+      onUpgrade: (database, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await database.execute(
+            'ALTER TABLE transactions ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0',
+          );
+        }
+      },
       onCreate: (database, version) async {
         await database.execute('''
           CREATE TABLE transactions (
@@ -35,7 +43,8 @@ class FinanceTransactionRepository {
             title TEXT NOT NULL,
             category TEXT NOT NULL,
             amountInCents INTEGER NOT NULL,
-            type TEXT NOT NULL
+            type TEXT NOT NULL,
+            isFavorite INTEGER NOT NULL DEFAULT 0
           )
         ''');
         await database.execute('''
@@ -64,8 +73,20 @@ class FinanceTransactionRepository {
       'category': transaction.category,
       'amountInCents': transaction.amountInCents,
       'type': transaction.type.name,
+      'isFavorite': transaction.isFavorite ? 1 : 0,
     });
     return transaction.withId(id);
+  }
+
+  Future<void> setFavorite(int id, bool isFavorite) async {
+    final database = await _db;
+    final updated = await database.update(
+      'transactions',
+      {'isFavorite': isFavorite ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (updated != 1) throw StateError('Lançamento não encontrado: $id');
   }
 
   Future<void> _importLegacyTransactions(Database database) async {
@@ -96,6 +117,7 @@ class FinanceTransactionRepository {
           'category': item.category,
           'amountInCents': item.amountInCents,
           'type': item.type.name,
+          'isFavorite': item.isFavorite ? 1 : 0,
         });
       }
       await transaction.insert('metadata', {
@@ -108,6 +130,7 @@ class FinanceTransactionRepository {
   FinanceTransaction _fromRow(Map<String, Object?> row) {
     return FinanceTransaction(
       id: row['id'] as int,
+      isFavorite: row['isFavorite'] == 1,
       title: row['title'] as String,
       category: row['category'] as String,
       amountInCents: row['amountInCents'] as int,

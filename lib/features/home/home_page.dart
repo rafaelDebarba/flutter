@@ -14,6 +14,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  static const _favoriteColor = Color(0xFF805600);
+  static const _favoriteBackground = Color(0xFFFFF4D6);
+  bool _onlyFavorites = false;
+
   static String _formatCurrency(int amountInCents) {
     final absoluteAmount = amountInCents.abs();
     final wholePart = (absoluteAmount ~/ 100).toString().replaceAllMapped(
@@ -59,6 +63,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _toggleFavorite(int id) async {
+    try {
+      await context.read<FinanceProvider>().toggleFavorite(id);
+    } catch (_) {
+      if (mounted) {
+        _showMessage('Não foi possível atualizar o favorito. Tente novamente.');
+      }
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -69,6 +83,10 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final finance = context.watch<FinanceProvider>();
     final profile = context.watch<FinancialProfileProvider>();
+    final favorites = finance.favoriteTransactions;
+    final visibleTransactions = _onlyFavorites
+        ? favorites
+        : finance.transactions;
 
     return Scaffold(
       body: SafeArea(
@@ -180,18 +198,12 @@ class _HomePageState extends State<HomePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Saldo disponível',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-
-                            ],
+                          const Text(
+                            'Saldo disponível',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
                           ),
 
                           const SizedBox(height: 10),
@@ -207,14 +219,15 @@ class _HomePageState extends State<HomePage> {
 
                           const SizedBox(height: 20),
 
-                          Row(
+                          Wrap(
+                            spacing: 28,
+                            runSpacing: 12,
                             children: [
                               _balanceInfo(
                                 'Receitas',
                                 _formatCurrency(finance.incomeInCents),
                                 Icons.arrow_downward_rounded,
                               ),
-                              const SizedBox(width: 28),
                               _balanceInfo(
                                 'Despesas',
                                 _formatCurrency(finance.expenseInCents),
@@ -229,22 +242,42 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 28),
 
                     // TRANSAÇÕES
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Últimas transações',
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF193B20),
-                          ),
-                        ),
-
-                      ],
+                    const Text(
+                      'Transações',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF193B20),
+                      ),
                     ),
 
-                    const SizedBox(height: 4),
+                    if (!finance.isLoading && finance.loadError == null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Todas'),
+                              selected: !_onlyFavorites,
+                              onSelected: (_) =>
+                                  setState(() => _onlyFavorites = false),
+                            ),
+                            ChoiceChip(
+                              avatar: const Icon(
+                                Icons.star_rounded,
+                                color: _favoriteColor,
+                              ),
+                              label: Text('Favoritas (${favorites.length})'),
+                              selected: _onlyFavorites,
+                              selectedColor: _favoriteBackground,
+                              onSelected: (_) =>
+                                  setState(() => _onlyFavorites = true),
+                            ),
+                          ],
+                        ),
+                      ),
 
                     if (finance.loadError != null)
                       Padding(
@@ -266,16 +299,20 @@ class _HomePageState extends State<HomePage> {
                         padding: EdgeInsets.symmetric(vertical: 18),
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    else if (finance.transactions.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 18),
+                    else if (visibleTransactions.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         child: Text(
-                          'Nenhum lançamento registrado ainda.',
-                          style: TextStyle(color: Color(0xFF718071)),
+                          _onlyFavorites
+                              ? 'Nenhum favorito ainda. Em Todas, toque na estrela de um lançamento.'
+                              : 'Nenhum lançamento registrado ainda.',
+                          style: const TextStyle(color: Color(0xFF718071)),
                         ),
                       )
                     else
-                      ...finance.transactions.reversed.map(_buildTransaction),
+                      ...visibleTransactions.reversed.map(
+                        (item) => _buildTransaction(item, finance),
+                      ),
 
                     const SizedBox(height: 90),
                   ],
@@ -298,7 +335,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildTransaction(FinanceTransaction transaction) {
+  Widget _buildTransaction(
+    FinanceTransaction transaction,
+    FinanceProvider finance,
+  ) {
     final isIncome = transaction.type == TransactionType.income;
     final color = isIncome
         ? Colors.green
@@ -308,7 +348,25 @@ class _HomePageState extends State<HomePage> {
         : _categoryIcon(transaction.category);
     final sign = isIncome ? '+ ' : '- ';
 
+    final id = transaction.id;
+    final isFavorite = transaction.isFavorite;
     return _transaction(
+      isFavorite: isFavorite,
+      favoriteButton: IconButton(
+        tooltip: isFavorite
+            ? 'Remover dos favoritos'
+            : 'Adicionar aos favoritos',
+        isSelected: isFavorite,
+        style: IconButton.styleFrom(
+          foregroundColor: _favoriteColor,
+          backgroundColor: isFavorite ? _favoriteBackground : null,
+        ),
+        onPressed: id == null || finance.isUpdatingFavorite(id)
+            ? null
+            : () => _toggleFavorite(id),
+        icon: const Icon(Icons.star_border_rounded),
+        selectedIcon: const Icon(Icons.star_rounded),
+      ),
       icon: icon,
       title: transaction.title,
       category: transaction.category,
@@ -340,6 +398,7 @@ class _HomePageState extends State<HomePage> {
 
   static Widget _balanceInfo(String title, String value, IconData icon) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 30,
@@ -378,6 +437,8 @@ class _HomePageState extends State<HomePage> {
     required String category,
     required String value,
     required Color color,
+    required bool isFavorite,
+    required Widget favoriteButton,
     bool income = false,
   }) {
     return Container(
@@ -386,6 +447,9 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isFavorite ? const Color(0xFFE8CD89) : const Color(0xFFF0F3EF),
+        ),
       ),
       child: Row(
         children: [
@@ -407,6 +471,8 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -425,14 +491,22 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: income ? const Color(0xFF4CAF58) : const Color(0xFF263526),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: income
+                    ? const Color(0xFF4CAF58)
+                    : const Color(0xFF263526),
+              ),
             ),
           ),
+          const SizedBox(width: 4),
+          favoriteButton,
         ],
       ),
     );
