@@ -6,6 +6,7 @@ enum TransactionType { income, expense }
 class FinanceTransaction {
   const FinanceTransaction({
     this.id,
+    this.isFavorite = false,
     required this.title,
     required this.category,
     required this.amountInCents,
@@ -13,6 +14,7 @@ class FinanceTransaction {
   });
 
   final int? id;
+  final bool isFavorite;
   final String title;
   final String category;
   final int amountInCents;
@@ -20,10 +22,20 @@ class FinanceTransaction {
 
   FinanceTransaction withId(int id) => FinanceTransaction(
     id: id,
+    isFavorite: isFavorite,
     title: title,
     category: category,
     amountInCents: amountInCents,
     type: type,
+  );
+
+  FinanceTransaction withFavorite(bool isFavorite) => FinanceTransaction(
+    id: id,
+    title: title,
+    category: category,
+    amountInCents: amountInCents,
+    type: type,
+    isFavorite: isFavorite,
   );
 
   Map<String, Object> toJson() => {
@@ -31,10 +43,12 @@ class FinanceTransaction {
     'category': category,
     'amountInCents': amountInCents,
     'type': type.name,
+    'isFavorite': isFavorite,
   };
 
   factory FinanceTransaction.fromJson(Map<String, dynamic> json) {
     return FinanceTransaction(
+      isFavorite: json['isFavorite'] == true,
       title: json['title'] as String,
       category: json['category'] as String,
       amountInCents: json['amountInCents'] as int,

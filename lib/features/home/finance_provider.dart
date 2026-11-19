@@ -9,12 +9,19 @@ class FinanceProvider extends ChangeNotifier {
 
   final FinanceTransactionRepository _repository;
   List<FinanceTransaction> _transactions = [];
+  final Set<int> _pendingFavorites = {};
+  bool _disposed = false;
   bool _isLoading = true;
   bool _hasLoaded = false;
   String? _loadError;
   Future<void>? _loadingFuture;
 
   List<FinanceTransaction> get transactions => List.unmodifiable(_transactions);
+  List<FinanceTransaction> get favoriteTransactions =>
+      List.unmodifiable(_transactions.where((item) => item.isFavorite));
+
+  bool isUpdatingFavorite(int id) => _pendingFavorites.contains(id);
+
   bool get isLoading => _isLoading;
   String? get loadError => _loadError;
 
@@ -62,8 +69,26 @@ class FinanceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> toggleFavorite(int id) async {
+    if (!_pendingFavorites.add(id)) return;
+
+    try {
+      final index = _transactions.indexWhere((item) => item.id == id);
+      if (index == -1) throw StateError('Lançamento não encontrado: $id');
+      final current = _transactions[index];
+      final updated = current.withFavorite(!current.isFavorite);
+      notifyListeners();
+      await _repository.setFavorite(id, updated.isFavorite);
+      _transactions[index] = updated;
+    } finally {
+      _pendingFavorites.remove(id);
+      if (!_disposed) notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
+    _disposed = true;
     _repository.close();
     super.dispose();
   }
