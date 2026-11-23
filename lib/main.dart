@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/saldozen.dart';
+import 'features/home/data/supabase_transaction_template_repository.dart';
 import 'app/config/supabase_config.dart';
 import 'core/database/database_factory_setup.dart';
 
@@ -33,5 +34,11 @@ Future<void> main() async {
   );
 
   // Mantém o aplicativo SaldoZen.
-  runApp(const SaldoZenApp());
+  runApp(
+    SaldoZenApp(
+      templateRepository: SupabaseTransactionTemplateRepository(
+        Supabase.instance.client,
+      ),
+    ),
+  );
 }

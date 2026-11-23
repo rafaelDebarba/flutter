@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../profile/financial_profile_provider.dart';
 import '../profile/financial_profile_screen.dart';
 import 'finance_provider.dart';
+import 'presentation/suggestions_page.dart';
 import 'transaction_form.dart';
 
 class HomePage extends StatefulWidget {
@@ -321,6 +322,29 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+      ),
+
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 0,
+        onDestinationSelected: (index) {
+          if (index == 1) {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const SuggestionsPage(),
+              ),
+            );
+          }
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            label: 'Início',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.lightbulb_outline),
+            label: 'Sugestões',
+          ),
+        ],
       ),
 
       // BOTÃO ADICIONAR
