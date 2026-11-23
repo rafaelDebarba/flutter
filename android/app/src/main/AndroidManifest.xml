@@ -1,4 +1,6 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+﻿<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- O catalogo vem do Supabase. Permite acesso a internet no release. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="app_saldozen"
         android:name="${applicationName}"
@@ -43,3 +45,4 @@
         </intent>
     </queries>
 </manifest>
+
