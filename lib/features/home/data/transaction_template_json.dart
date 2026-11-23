@@ -21,7 +21,7 @@ enum TemplateCategory {
   outros,
 }
 
-enum TemplateFrequency { one_time, weekly, monthly, yearly }
+enum TemplateFrequency { oneTime, weekly, monthly, yearly }
 
 class TransactionTemplate {
   const TransactionTemplate({
@@ -130,7 +130,10 @@ TransactionTemplate transactionTemplateFromJson(
     ),
     category: TemplateCategory.values.byName(json['category'] as String),
     suggestedAmountCents: json['suggested_amount_cents'] as int,
-    frequency: TemplateFrequency.values.byName(json['frequency'] as String),
+    frequency: switch (json['frequency'] as String) {
+      'one_time' => TemplateFrequency.oneTime,
+      final value => TemplateFrequency.values.byName(value),
+    },
     tags: List<String>.unmodifiable(
       (json['tags'] as List<dynamic>).map((item) => item as String),
     ),
