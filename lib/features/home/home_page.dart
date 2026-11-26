@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -6,7 +8,9 @@ import '../profile/financial_profile_screen.dart';
 import 'finance_provider.dart';
 import 'reloadable_home_scroll_view.dart';
 import 'presentation/suggestions_page.dart';
+import 'transaction_filters.dart';
 import 'transaction_form.dart';
+import 'transaction_query.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,7 +22,29 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   static const _favoriteColor = Color(0xFF805600);
   static const _favoriteBackground = Color(0xFFFFF4D6);
-  bool _onlyFavorites = false;
+  final _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  TransactionQuery _query = const TransactionQuery();
+
+  void _search(String description) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      setState(() => _query = _query.copyWith(description: description));
+    });
+  }
+
+  void _clearFilters() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() => _query = const TransactionQuery());
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   static String _formatCurrency(int amountInCents) {
     final absoluteAmount = amountInCents.abs();
@@ -86,9 +112,10 @@ class _HomePageState extends State<HomePage> {
     final finance = context.watch<FinanceProvider>();
     final profile = context.watch<FinancialProfileProvider>();
     final favorites = finance.favoriteTransactions;
-    final visibleTransactions = _onlyFavorites
-        ? favorites
-        : finance.transactions;
+    final transactions = finance.transactions;
+    final visibleTransactions = applyTransactionQuery(transactions, _query);
+    final categories =
+        transactions.map((item) => item.category).toSet().toList()..sort();
 
     return Scaffold(
       body: SafeArea(
@@ -262,9 +289,12 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             ChoiceChip(
                               label: const Text('Todas'),
-                              selected: !_onlyFavorites,
-                              onSelected: (_) =>
-                                  setState(() => _onlyFavorites = false),
+                              selected: !_query.favoritesOnly,
+                              onSelected: (_) => setState(
+                                () => _query = _query.copyWith(
+                                  favoritesOnly: false,
+                                ),
+                              ),
                             ),
                             ChoiceChip(
                               avatar: const Icon(
@@ -272,13 +302,28 @@ class _HomePageState extends State<HomePage> {
                                 color: _favoriteColor,
                               ),
                               label: Text('Favoritas (${favorites.length})'),
-                              selected: _onlyFavorites,
+                              selected: _query.favoritesOnly,
                               selectedColor: _favoriteBackground,
-                              onSelected: (_) =>
-                                  setState(() => _onlyFavorites = true),
+                              onSelected: (_) => setState(
+                                () => _query = _query.copyWith(
+                                  favoritesOnly: true,
+                                ),
+                              ),
                             ),
                           ],
                         ),
+                      ),
+
+                    if (!finance.isLoading &&
+                        finance.loadError == null &&
+                        transactions.isNotEmpty)
+                      TransactionFilters(
+                        query: _query,
+                        categories: categories,
+                        searchController: _searchController,
+                        onSearch: _search,
+                        onChanged: (query) => setState(() => _query = query),
+                        onClear: _clearFilters,
                       ),
 
                     if (finance.loadError != null)
@@ -305,14 +350,16 @@ class _HomePageState extends State<HomePage> {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         child: Text(
-                          _onlyFavorites
+                          _query.favoritesOnly && favorites.isEmpty
                               ? 'Nenhum favorito ainda. Em Todas, toque na estrela de um lançamento.'
+                              : _query.hasFilters
+                              ? 'Nenhum lançamento corresponde aos filtros.'
                               : 'Nenhum lançamento registrado ainda.',
                           style: const TextStyle(color: Color(0xFF718071)),
                         ),
                       )
                     else
-                      ...visibleTransactions.reversed.map(
+                      ...visibleTransactions.map(
                         (item) => _buildTransaction(item, finance),
                       ),
 

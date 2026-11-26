@@ -206,29 +206,50 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    Future<void> tapVisible(Finder finder) async {
+      await Scrollable.ensureVisible(tester.element(finder), alignment: 0.25);
+      await tester.pumpAndSettle();
+      await tester.tap(finder);
+    }
+
     final add = find.byTooltip('Adicionar aos favoritos');
     final remove = find.byTooltip('Remover dos favoritos');
-    await tester.tap(add.first);
+    await tapVisible(add.first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Favoritas (1)'));
+    await tapVisible(find.text('Favoritas (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Mercado'), findsOneWidget);
     expect(find.text('Freelance'), findsNothing);
 
-    await tester.tap(remove);
+    await tapVisible(remove);
     await tester.pumpAndSettle();
     expect(find.text('Favoritas (0)'), findsOneWidget);
     expect(find.textContaining('Nenhum favorito ainda'), findsOneWidget);
-    await tester.tap(find.text('Todas'));
+    await tapVisible(find.text('Todas'));
     await tester.pumpAndSettle();
-    await tester.tap(add.last);
+    await tapVisible(add.last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Favoritas (1)'));
+    await tapVisible(find.text('Favoritas (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Freelance'), findsOneWidget);
     expect(find.text('Mercado'), findsNothing);
     expect(provider.balanceInCents, 95000);
     expect(find.text('R\$ 950,00'), findsOneWidget);
+    final search = find.byType(TextField);
+    await Scrollable.ensureVisible(tester.element(search), alignment: 0.25);
+    await tester.enterText(search, 'mercado');
+    await tester.pump(const Duration(milliseconds: 299));
+    expect(find.text('Freelance'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.text('Freelance'), findsNothing);
+    expect(
+      find.text('Nenhum lançamento corresponde aos filtros.'),
+      findsOneWidget,
+    );
+    await tapVisible(find.text('Limpar filtros'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mercado'), findsOneWidget);
+    expect(find.text('Freelance'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
