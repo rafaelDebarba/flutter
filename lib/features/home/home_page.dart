@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../profile/financial_profile_provider.dart';
 import '../profile/financial_profile_screen.dart';
 import 'finance_provider.dart';
+import 'reloadable_home_scroll_view.dart';
 import 'presentation/suggestions_page.dart';
 import 'transaction_form.dart';
 
@@ -91,7 +92,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
+        child: ReloadableHomeScrollView(
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
@@ -329,9 +330,7 @@ class _HomePageState extends State<HomePage> {
         onDestinationSelected: (index) {
           if (index == 1) {
             Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const SuggestionsPage(),
-              ),
+              MaterialPageRoute<void>(builder: (_) => const SuggestionsPage()),
             );
           }
         },

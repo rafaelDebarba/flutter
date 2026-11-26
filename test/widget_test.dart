@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:app_saldozen/app/saldozen.dart';
+import 'package:app_saldozen/features/home/data/transaction_template_json.dart';
+import 'package:app_saldozen/features/home/data/transaction_template_repository.dart';
 import 'package:app_saldozen/features/home/home_page.dart';
 import 'package:app_saldozen/features/home/finance_provider.dart';
 import 'package:app_saldozen/features/home/finance_transaction_repository.dart';
@@ -232,7 +234,9 @@ void main() {
   });
 
   testWidgets('deve renderizar a splash screen', (WidgetTester tester) async {
-    await tester.pumpWidget(const SaldoZenApp());
+    await tester.pumpWidget(
+      SaldoZenApp(templateRepository: _EmptyTemplateRepository()),
+    );
 
     expect(find.byType(Image), findsOneWidget);
     final image = tester.widget<Image>(find.byType(Image));
@@ -485,4 +489,12 @@ class _PendingLoadRepository extends FinanceTransactionRepository {
 
   @override
   Future<void> close() async {}
+}
+
+class _EmptyTemplateRepository implements TransactionTemplateRepository {
+  @override
+  Future<List<TransactionTemplate>> getTemplates() async => [];
+
+  @override
+  Future<TransactionTemplate?> getTemplateById(String id) async => null;
 }
